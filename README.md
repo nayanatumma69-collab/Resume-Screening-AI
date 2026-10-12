@@ -1,70 +1,138 @@
-# 📄 AI Resume Screening & Candidate Ranking System
+# 📄 AI Resume Screening System
 
-An automated AI-powered candidate evaluation and screening system that parses applicant resumes, extracts structured career attributes (skills, education, experience), and calculates semantic relevance against target job descriptions using Sentence-BERT.
+## 🚀 Live Demo
 
-🔗 **Live Streamlit Demo:** [resume-screening-ai-8g7xzgkhckndkfznumxlah.streamlit.app](https://resume-screening-ai-8g7xzgkhckndkfznumxlah.streamlit.app)
+**Try the application here:** [AI Resume Screening](https://resume-screening-ai-8g7xzgkhckndkfznumxlah.streamlit.app/)
 
----
+## 📌 Project Overview
 
-## 💡 How the Project Works
+The AI Resume Screening System is a Python-based application that helps compare candidate resumes against a job description. It extracts text from PDF resumes, generates semantic embeddings, and calculates similarity scores to help organize resumes according to their relevance to a specified role.
 
-1. **Document Ingestion & Text Extraction:**
-   - Supports both PDF and plain text formats.
-   - Text is parsed page-by-page using `PyPDF2`, stripped of extraneous symbols/whitespace, and normalized for NLP evaluation.
+The project demonstrates how Natural Language Processing (NLP), sentence embeddings, and semantic similarity can support an initial resume screening workflow.
 
-2. **Attribute & Keyword Extraction:**
-   - **Skills:** Matches candidate text against a targeted technology taxonomy using word-boundary regex patterns.
-   - **Education:** Identifies academic credentials (e.g., B.Tech, M.Tech, Ph.D., MBA, BCA) using flexible regular expressions.
-   - **Experience:** Detects years of relevant industry experience mentioned throughout the profile.
+This application is intended to assist recruiters and hiring teams, not replace human evaluation or hiring decisions.
 
-3. **Semantic Embedding & Matching:**
-   - Converts the target Job Description and all candidate resumes into high-dimensional dense vector embeddings using Sentence-BERT (`all-MiniLM-L6-v2`).
-   - Computes semantic alignment via **Cosine Similarity**, capturing contextual relevance rather than relying on naive keyword counts.
-   - Scores are normalized to match percentages ($0\% \text{ to } 100\%$).
+## ⚙️ How the Project Works
 
-4. **Ranking & Reporting:**
-   - Ranks candidates in descending order based on match scores.
-   - Presents results via an interactive dashboard with match indicators and provides a one-click CSV export (`candidate_ranking_report.csv`).
+1. **Job Description Input:** The user enters the job description containing the role's responsibilities, required qualifications, and relevant skills.
+2. **Resume Upload:** The user uploads candidate resumes in PDF format through the Streamlit interface.
+3. **Text Extraction:** PyPDF2 extracts readable text from each PDF resume.
+4. **Semantic Embeddings:** The Sentence-Transformers model `all-MiniLM-L6-v2` converts the job description and resume text into numerical vector representations.
+5. **Similarity Calculation:** Cosine similarity compares the resume embeddings with the job description embedding.
+6. **Candidate Ranking:** The application sorts resumes by their calculated similarity scores to help identify potentially relevant profiles.
+7. **Information Extraction:** The application uses heuristic-based logic to identify selected skills, education details, and experience-related information from resume text.
+8. **Results and Export:** The Streamlit interface displays screening results and supports exporting results to a CSV file.
 
----
+## 🛠️ Technologies Used
 
-## 🛠️ Technology Stack
+- **Python** – Core programming language
+- **Streamlit** – Web interface and interactive application
+- **Sentence-Transformers** – Semantic text embeddings
+- **all-MiniLM-L6-v2** – Pre-trained sentence embedding model
+- **PyPDF2** – Text extraction from PDF resumes
+- **Scikit-learn** – Cosine similarity and related machine learning utilities
+- **NumPy** – Numerical operations
+- **Pandas** – Data organization and CSV export
 
-- **Core Language:** Python 3.x
-- **Web Interface:** Streamlit
-- **Document Parsing:** PyPDF2
-- **NLP & Embeddings:** HuggingFace `sentence-transformers` (`all-MiniLM-L6-v2`)
-- **Similarity & Math:** Scikit-Learn (`cosine_similarity`), NumPy
-- **Data Manipulation & Export:** Pandas
+## ✨ Key Features
 
----
+- Upload and process multiple PDF resumes
+- Compare resumes against a job description
+- Semantic similarity scoring using sentence embeddings
+- Rank candidate resumes by similarity score
+- Extract selected skills, education, and experience information using heuristic-based methods
+- Display results through an interactive Streamlit interface
+- Export screening results to CSV
+- Browser-based access through Streamlit Community Cloud
 
-## 🚀 How to Run the Project Locally
+## 💻 How to Run the Project Locally
 
-### 1. Clone the Repository
+### Prerequisites
+
+- Python 3.9 or later
+- pip package manager
+- Git (optional, for cloning the repository)
+
+### Step 1: Clone the Repository
+
+Replace `YOUR_GITHUB_USERNAME` with your GitHub username.
+
 ```bash
-git clone <(https://github.com/nayanatumma69-collab/Resume-Screening-AI.git)>
-cd AI_Resume_Screening
+git clone https://github.com/YOUR_GITHUB_USERNAME/ai-resume-screening.git
+```
 
-### 2. Create and Activate a Virtual Environment
+Navigate to the project directory:
+
 ```bash
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
+cd ai-resume-screening
+```
 
-### 3. Install Dependencies
+Alternatively, download the repository as a ZIP file and extract it.
+
+### Step 2: Install Dependencies
+
 ```bash
-pip install streamlit sentence-transformers scikit-learn pandas numpy PyPDF2
+pip install -r requirements.txt
+```
 
-### 4. Run the Streamlit Application
+### Step 3: Run the Streamlit Application
+
 ```bash
 streamlit run app.py
+```
 
-The app will open automatically in your browser at http://localhost:8501.
+### Step 4: Open the Application
 
-🌐 Live Application
+Streamlit will display a local URL in your terminal, usually:
 
-Access the hosted version directly without any local installation:
-👉 Open AI Resume Screener
+```text
+http://localhost:8501
+```
+
+Open the URL in your browser, enter a job description, upload PDF resumes, and review the screening results.
+
+**Note:** The first run may take several minutes because the application needs to download and load the sentence embedding model. Available memory and processing resources may affect performance.
+
+## 📂 Project Structure
+
+```text
+ai-resume-screening/
+│
+├── app.py
+├── requirements.txt
+├── README.md
+├── .gitignore
+└── notebooks/
+    └── Resume_Screening_AI.ipynb
+```
+
+- `app.py` – Main Streamlit application and resume screening logic
+- `requirements.txt` – Python dependencies
+- `README.md` – Project documentation
+- `notebooks/` – Original development notebook, if included
+
+## ⚠️ Limitations and Responsible Use
+
+- Similarity scores indicate textual or semantic similarity to the job description. They are not probabilities of job performance or measures of a candidate's overall suitability.
+- Skills, education, and experience extraction uses heuristic-based logic and may miss information or produce inaccurate results.
+- Scanned PDFs or image-based resumes may not yield readable text without OCR.
+- Resume ranking should not be used as the sole basis for hiring or rejecting candidates.
+- Recruiters should review candidates fairly and consider relevant experience, transferable skills, and the full context of each application.
+- Resumes may contain personal and sensitive information. Use authorized documents, handle them securely, and avoid uploading confidential candidate data to public services without appropriate permission.
+
+## 🔮 Future Improvements
+
+- Add OCR support for scanned resumes.
+- Improve structured extraction of skills, education, and work experience.
+- Add configurable skill matching and job requirement filters.
+- Support additional document formats.
+- Integrate secure resume storage and access controls.
+- Evaluate the system against human-reviewed screening results for accuracy and fairness.
+
+## 🎯 Learning Outcomes
+
+This project demonstrates practical skills in PDF text extraction, semantic embeddings, NLP, cosine similarity, candidate ranking, data processing, CSV export, and Streamlit application deployment.
+
+## 👩‍💻 Author
+
+Developed as an AI learning and portfolio project to demonstrate semantic similarity-based resume screening.
