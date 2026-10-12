@@ -1,42 +1,47 @@
-# AI Resume Screening & Candidate Ranking
+# 📄 AI Resume Screening & Candidate Ranking System
 
-A Streamlit app adapted from the uploaded `Resume_Screening_AI.ipynb` notebook. It extracts text from PDF/TXT resumes, detects a predefined list of skills, education, and stated experience, and compares resume text with a job description using Sentence-BERT (`all-MiniLM-L6-v2`) and cosine similarity.
+An automated AI-powered candidate evaluation and screening system that parses applicant resumes, extracts structured career attributes (skills, education, experience), and calculates semantic relevance against target job descriptions using Sentence-BERT.
 
-## Features
-- Upload multiple PDF or TXT resumes
-- Edit the target job description
-- Extract skills, education, and stated experience using pattern matching
-- Semantic text similarity and candidate ranking using Sentence-BERT
-- Download the results as CSV
-- Streamlit UI for free deployment
+🔗 **Live Streamlit Demo:** [resume-screening-ai-8g7xzgkhckndkfznumxlah.streamlit.app](https://resume-screening-ai-8g7xzgkhckndkfznumxlah.streamlit.app)
 
-## Important limitations and responsible use
-- The score is a text-similarity measure, not a probability of job performance or suitability.
-- The skill and education extractors use predefined patterns and can miss information or produce imperfect matches.
-- Do not use this tool as the sole basis for hiring decisions. A human should review the original resume and the context of each score.
-- Avoid uploading resumes without an appropriate lawful basis and consent. The app does not intentionally save uploaded resume files, but files are processed by the hosted application while it runs.
+---
 
-## Run locally
+## 💡 How the Project Works
+
+1. **Document Ingestion & Text Extraction:**
+   - Supports both PDF and plain text formats.
+   - Text is parsed page-by-page using `PyPDF2`, stripped of extraneous symbols/whitespace, and normalized for NLP evaluation.
+
+2. **Attribute & Keyword Extraction:**
+   - **Skills:** Matches candidate text against a targeted technology taxonomy using word-boundary regex patterns.
+   - **Education:** Identifies academic credentials (e.g., B.Tech, M.Tech, Ph.D., MBA, BCA) using flexible regular expressions.
+   - **Experience:** Detects years of relevant industry experience mentioned throughout the profile.
+
+3. **Semantic Embedding & Matching:**
+   - Converts the target Job Description and all candidate resumes into high-dimensional dense vector embeddings using Sentence-BERT (`all-MiniLM-L6-v2`).
+   - Computes semantic alignment via **Cosine Similarity**, capturing contextual relevance rather than relying on naive keyword counts.
+   - Scores are normalized to match percentages ($0\% \text{ to } 100\%$).
+
+4. **Ranking & Reporting:**
+   - Ranks candidates in descending order based on match scores.
+   - Presents results via an interactive dashboard with match indicators and provides a one-click CSV export (`candidate_ranking_report.csv`).
+
+---
+
+## 🛠️ Technology Stack
+
+- **Core Language:** Python 3.x
+- **Web Interface:** Streamlit
+- **Document Parsing:** PyPDF2
+- **NLP & Embeddings:** HuggingFace `sentence-transformers` (`all-MiniLM-L6-v2`)
+- **Similarity & Math:** Scikit-Learn (`cosine_similarity`), NumPy
+- **Data Manipulation & Export:** Pandas
+
+---
+
+## 🚀 How to Run the Project Locally
+
+### 1. Clone the Repository
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-## Deploy for free
-1. Create a GitHub repository named `ai-resume-screening`.
-2. Upload `app.py`, `requirements.txt`, `README.md`, and `.gitignore` to the repository root.
-3. Open https://share.streamlit.io and sign in with GitHub.
-4. Choose **Create app**, select the repository and `main` branch, and set the app file path to `app.py`.
-5. Click **Deploy**.
-
-The first launch downloads the Sentence-BERT model, so startup can take several minutes. If the free host runs out of memory or times out, we may need to reduce dependencies or use a lighter model.
-
-The original notebook is preserved in `notebooks/` for reference.
-
-## Project structure
-- `app.py` — Streamlit dashboard and ranking logic
-- `requirements.txt` — Python dependencies
-- `notebooks/Resume_Screening_AI.ipynb` — original Colab notebook
+git clone <YOUR_REPOSITORY_URL>
+cd AI_Resume_Screening
