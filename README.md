@@ -45,3 +45,26 @@ An automated AI-powered candidate evaluation and screening system that parses ap
 ```bash
 git clone <(https://github.com/nayanatumma69-collab/Resume-Screening-AI.git)>
 cd AI_Resume_Screening
+
+### 2. Create and Activate a Virtual Environment
+```bash
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+### 3. Install Dependencies
+```bash
+pip install streamlit sentence-transformers scikit-learn pandas numpy PyPDF2
+
+### 4. Run the Streamlit Application
+```bash
+streamlit run app.py
+
+The app will open automatically in your browser at http://localhost:8501.
+
+🌐 Live Application
+
+Access the hosted version directly without any local installation:
+👉 Open AI Resume Screener
