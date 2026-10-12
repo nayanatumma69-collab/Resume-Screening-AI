@@ -43,5 +43,5 @@ An automated AI-powered candidate evaluation and screening system that parses ap
 
 ### 1. Clone the Repository
 ```bash
-git clone <https://github.com/nayanatumma69-collab/Resume-Screening-AI.git>
+git clone <(https://github.com/nayanatumma69-collab/Resume-Screening-AI.git)>
 cd AI_Resume_Screening
