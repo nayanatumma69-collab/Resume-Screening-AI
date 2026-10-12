@@ -18,10 +18,8 @@ st.set_page_config(
 st.title("📄 AI Resume Screening & Candidate Ranking")
 st.write(
     "Upload resumes and compare their text with a job description using "
-    "Sentence-BERT semantic similarity."
 )
 st.info(
-    "This is a decision-support demo, not an automated hiring decision. "
     "Review each resume yourself. Match scores are approximate text-similarity "
     "signals, not probabilities of job performance."
 )
