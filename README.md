@@ -136,3 +136,6 @@ This project demonstrates practical skills in PDF text extraction, semantic embe
 ## 👩‍💻 Author
 
 Developed as an AI learning and portfolio project to demonstrate semantic similarity-based resume screening.
+
+- [LinkedIn](https://www.linkedin.com/in/nayana-tumma-23187687)
+- [GitHub](https://github.com/nayanatumma69-collab)
