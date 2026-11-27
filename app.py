@@ -1,75 +1,50 @@
+import hashlib
 import html
-import io
 import re
 from pathlib import Path
 
-import altair as alt
 import numpy as np
 import pandas as pd
 import PyPDF2
 import streamlit as st
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(
     page_title="AI Resume Screening",
     page_icon="📄",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-st.markdown(
-    """
-    <style>
-    .hero {
-        background: linear-gradient(120deg, #4f46e5, #9333ea 50%, #db2777);
-        border-radius: 18px; padding: 28px 32px; margin-bottom: 18px;
-    }
-    .hero h1 { color: #fff; margin: 0; padding: 0; font-size: 2.1rem; }
-    .hero p { color: #f5f3ff; margin: 8px 0 0; }
-    .card {
-        border-radius: 14px; padding: 16px 18px; color: #fff;
-        margin-bottom: 12px; min-height: 108px;
-    }
-    .card small { display: block; opacity: .9; }
-    .card b { display: block; font-size: 1.6rem; overflow-wrap: anywhere; }
-    .chip {
-        display: inline-block; padding: 3px 11px; margin: 3px;
-        border-radius: 999px; font-size: .85rem; color: #fff;
-    }
-    .chip-match { background: #047857; }
-    .chip-missing { background: #be123c; }
-    .chip-extra { background: #4f46e5; }
-    div.stButton > button[kind="primary"], div.stDownloadButton > button {
-        background: linear-gradient(90deg, #4f46e5, #db2777);
-        color: #fff; border: 0; border-radius: 12px; font-weight: 600;
-    }
-    div[data-testid="stExpander"] {
-        border: 1px solid rgba(147, 51, 234, .45); border-radius: 12px;
-    }
-    section[data-testid="stSidebar"] {
-        background-image: linear-gradient(180deg, rgba(79,70,229,.16), rgba(219,39,119,.10));
-    }
-    </style>
-    <div class="hero">
-        <h1>📄 AI Resume Screening & Candidate Ranking</h1>
-        <p>Upload resumes and compare their text with a job description using Sentence-BERT.</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-st.info(
-    "Review each resume yourself. Match scores are approximate text-similarity "
-    "signals, not probabilities of job performance."
-)
-
-SKILL_DATABASE = [
-    "python", "machine learning", "deep learning", "nlp",
-    "natural language processing", "pytorch", "tensorflow",
-    "scikit-learn", "huggingface", "transformers", "pandas", "numpy",
-    "docker", "kubernetes", "sql", "flask", "fastapi", "streamlit",
-    "aws", "azure", "gcp", "git", "data analysis", "tableau",
-    "power bi", "llm", "opencv",
-]
+# Display name -> spellings to look for in the text
+SKILLS = {
+    "Python": ["python"],
+    "Machine Learning": ["machine learning"],
+    "Deep Learning": ["deep learning"],
+    "NLP": ["nlp", "natural language processing"],
+    "PyTorch": ["pytorch"],
+    "TensorFlow": ["tensorflow"],
+    "Scikit-learn": ["scikit-learn", "sklearn"],
+    "Hugging Face": ["huggingface", "hugging face"],
+    "Transformers": ["transformers"],
+    "Pandas": ["pandas"],
+    "NumPy": ["numpy"],
+    "Docker": ["docker"],
+    "Kubernetes": ["kubernetes"],
+    "SQL": ["sql"],
+    "Flask": ["flask"],
+    "FastAPI": ["fastapi"],
+    "Streamlit": ["streamlit"],
+    "AWS": ["aws"],
+    "Azure": ["azure"],
+    "GCP": ["gcp"],
+    "Git": ["git"],
+    "Data Analysis": ["data analysis"],
+    "Tableau": ["tableau"],
+    "Power BI": ["power bi"],
+    "LLM": ["llm", "llms"],
+    "OpenCV": ["opencv"],
+}
 
 EDUCATION_PATTERNS = [
     r"\b(?:B\.?Tech|B\.?E\.?|B\.?S\.?|B\.?Sc|Bachelor(?:'s)?(?:\s+of\s+[\w\s]+)?)\b",
@@ -82,269 +57,268 @@ EXPERIENCE_PATTERNS = [
     r"(\b\d+\+?\s*(?:years?|yrs?)\b)",
 ]
 
-DEFAULT_JD = """Job Title: AI & Machine Learning Engineer
-
-Role Overview:
-We are seeking an AI Engineer proficient in Python, Machine Learning,
-Deep Learning, and Natural Language Processing (NLP).
-
-Key Requirements & Skills:
-- PyTorch, TensorFlow, HuggingFace Transformers, and Scikit-learn
-- Pandas, NumPy, and SQL
-- Flask, FastAPI, Streamlit, and deployment of ML models
-- Bachelor's or Master's degree in Computer Science, Data Science, or a related field
-- Experience developing, fine-tuning, and deploying machine learning models
+STYLE = """
+<style>
+.hero { background: linear-gradient(120deg, #0f172a, #3730a3 55%, #0e7490);
+        border-radius: 20px; padding: 30px 34px; margin-bottom: 20px; }
+.hero h1 { color: #fff; margin: 0; padding: 0; font-size: 2rem; }
+.hero p { color: #cbd5e1; margin: 8px 0 0; }
+.grid { display: grid; gap: 14px; margin-bottom: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.card { background: #fff; color: #0f172a; border-radius: 16px; padding: 18px;
+        border: 1px solid #e2e8f0; box-shadow: 0 6px 18px rgba(15,23,42,.08); }
+.stat { border-top: 5px solid var(--c); }
+.stat small { color: #64748b; display: block; }
+.stat b { font-size: 1.5rem; overflow-wrap: anywhere; }
+.person { text-align: center; }
+.ring { width: 140px; height: 140px; border-radius: 50%; margin: 6px auto 12px;
+        display: grid; place-items: center;
+        background: conic-gradient(var(--c) calc(var(--p) * 1%), #e2e8f0 0); }
+.ring span { width: 108px; height: 108px; border-radius: 50%; background: #fff;
+             display: grid; place-items: center; font-size: 1.45rem; font-weight: 700; }
+.person b { display: block; overflow-wrap: anywhere; }
+.person small { color: #64748b; }
+.chip { display: inline-block; padding: 4px 12px; margin: 3px; border-radius: 999px;
+        font-size: .85rem; font-weight: 600; }
+.match { background: #d1fae5; color: #065f46; }
+.missing { background: #ffe4e6; color: #9f1239; }
+.extra { background: #e0e7ff; color: #3730a3; }
+section[data-testid="stSidebar"] { border-right: 4px solid #4f46e5; }
+</style>
 """
+
+RING_COLORS = ["#4f46e5", "#0891b2", "#db2777", "#d97706", "#059669", "#7c3aed"]
+
 
 @st.cache_resource(show_spinner="Loading Sentence-BERT model (first load may take a few minutes)...")
 def load_embedder():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
+
 def extract_text(uploaded_file):
     """Extract text from a PDF or TXT upload without saving it to disk."""
-    name = uploaded_file.name.lower()
+    if uploaded_file.name.lower().endswith(".pdf"):
+        uploaded_file.seek(0)
+        reader = PyPDF2.PdfReader(uploaded_file)
+        return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
+    return uploaded_file.getvalue().decode("utf-8", errors="ignore").strip()
+
+
+def read_upload(uploaded_file):
+    """Return the file's text, or an empty string after showing why it failed."""
     try:
-        if name.endswith(".pdf"):
-            uploaded_file.seek(0)
-            reader = PyPDF2.PdfReader(uploaded_file)
-            pages = []
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    pages.append(page_text)
-            return "\n".join(pages).strip()
-        if name.endswith(".txt"):
-            uploaded_file.seek(0)
-            return uploaded_file.getvalue().decode("utf-8", errors="ignore").strip()
+        text = extract_text(uploaded_file)
     except Exception as exc:
-        return f"ERROR: Could not read {uploaded_file.name}: {exc}"
-    return ""
+        st.error(f"Could not read {uploaded_file.name}: {exc}")
+        return ""
+    if not text:
+        st.warning(f"No readable text in {uploaded_file.name}. It may be scanned or empty.")
+    return text
+
 
 def extract_skills(text):
-    text_lower = text.lower()
-    found = set()
-    for skill in SKILL_DATABASE:
-        if re.search(r"\b" + re.escape(skill) + r"\b", text_lower):
-            found.add(skill.title())
-    return sorted(found)
+    text = text.lower()
+    return [
+        skill for skill, spellings in SKILLS.items()
+        if any(re.search(r"\b" + re.escape(word) + r"\b", text) for word in spellings)
+    ]
+
 
 def extract_education(text):
     found = set()
     for pattern in EDUCATION_PATTERNS:
-        for match in re.findall(pattern, text, flags=re.IGNORECASE):
-            found.add(match.strip())
-    return sorted(found) if found else ["Not explicitly identified"]
+        found.update(match.strip() for match in re.findall(pattern, text, flags=re.IGNORECASE))
+    return sorted(found) or ["Not explicitly identified"]
+
 
 def extract_experience(text):
     found = []
     for pattern in EXPERIENCE_PATTERNS:
         found.extend(re.findall(pattern, text, flags=re.IGNORECASE))
     unique = list(dict.fromkeys(item.strip() for item in found))
-    return unique[:3] if unique else ["Not explicitly specified"]
+    return unique[:3] or ["Not explicitly specified"]
 
-@st.cache_resource(show_spinner=False)
-def get_embedder():
-    return SentenceTransformer("all-MiniLM-L6-v2")
 
-def stat_card(column, label, value, colors):
-    column.markdown(
-        f'<div class="card" style="background:linear-gradient(135deg,{colors})">'
-        f"<small>{label}</small><b>{html.escape(str(value))}</b></div>",
-        unsafe_allow_html=True,
-    )
+def rank_candidates(job_description, candidates):
+    """Score each candidate against the job description and sort, best first."""
+    texts = [job_description] + [c["text"] for c in candidates]
+    embeddings = load_embedder().encode(texts, convert_to_numpy=True, normalize_embeddings=True)
+    for candidate, embedding in zip(candidates, embeddings[1:]):
+        similarity = float(np.dot(embeddings[0], embedding))
+        candidate["score"] = round(float(np.clip(similarity, 0.0, 1.0)) * 100, 2)
+    return sorted(candidates, key=lambda c: c["score"], reverse=True)
 
-def skill_chips(skills, kind):
-    if not skills:
-        return "<em>None detected</em>"
-    return "".join(
-        f'<span class="chip chip-{kind}">{html.escape(skill)}</span>' for skill in skills
-    )
 
-def match_chart(candidates):
-    """Horizontal bar chart of text similarity, best candidate on top."""
-    data = pd.DataFrame(
-        {"Candidate": f"#{rank} {c['name']}", "Similarity": c["score"]}
-        for rank, c in enumerate(candidates, start=1)
-    )
-    base = alt.Chart(data).encode(
-        y=alt.Y("Candidate:N", sort=None, title=None, axis=alt.Axis(labelLimit=260)),
-        x=alt.X("Similarity:Q", scale=alt.Scale(domain=[0, 100]), title="Text similarity (%)"),
-        tooltip=["Candidate", alt.Tooltip("Similarity:Q", format=".2f")],
-    )
-    bars = base.mark_bar(cornerRadiusEnd=6).encode(
-        color=alt.Color(
-            "Similarity:Q",
-            scale=alt.Scale(domain=[0, 100], range=["#f59e0b", "#db2777", "#4f46e5"]),
-            legend=None,
-        )
-    )
-    labels = base.mark_text(align="left", dx=5, color="#8b5cf6", fontWeight="bold").encode(
-        text=alt.Text("Similarity:Q", format=".1f")
-    )
-    return (bars + labels).properties(height=max(140, 46 * len(data)))
-
-def skill_chart(candidates, jd_skills):
-    """Stacked bar chart of job-description skills found and not found."""
-    rows = []
-    for rank, c in enumerate(candidates, start=1):
-        matched = len(set(c["skills"]) & set(jd_skills))
-        label = f"#{rank} {c['name']}"
-        rows.append({"Candidate": label, "Status": "Found", "Skills": matched, "Order": 0})
-        rows.append({"Candidate": label, "Status": "Not found",
-                     "Skills": len(jd_skills) - matched, "Order": 1})
-    data = pd.DataFrame(rows)
+def ring_card(percent, color, title, subtitle):
     return (
-        alt.Chart(data)
-        .mark_bar()
-        .encode(
-            y=alt.Y("Candidate:N", sort=None, title=None, axis=alt.Axis(labelLimit=260)),
-            x=alt.X("Skills:Q", title="Job description skills"),
-            color=alt.Color(
-                "Status:N",
-                scale=alt.Scale(domain=["Found", "Not found"], range=["#10b981", "#f43f5e"]),
-                legend=alt.Legend(orient="top", title=None),
-            ),
-            order=alt.Order("Order:Q"),
-            tooltip=["Candidate", "Status", "Skills"],
-        )
-        .properties(height=max(160, 46 * len(candidates)))
+        f'<div class="card person"><div class="ring" style="--p:{percent:.2f};--c:{color}">'
+        f"<span>{percent:.1f}%</span></div><b>{html.escape(title)}</b>"
+        f"<small>{html.escape(subtitle)}</small></div>"
     )
+
+
+def stat_card(label, value, color):
+    return (
+        f'<div class="card stat" style="--c:{color}"><small>{label}</small>'
+        f"<b>{html.escape(str(value))}</b></div>"
+    )
+
+
+def chips(skills, kind):
+    if not skills:
+        return "<em>None</em>"
+    return "".join(f'<span class="chip {kind}">{html.escape(s)}</span>' for s in skills)
+
+
+def show_html(content):
+    st.markdown(content, unsafe_allow_html=True)
+
+
+def grid(cards):
+    show_html(f'<div class="grid">{"".join(cards)}</div>')
+
+
+def show_results(candidates, jd_skills):
+    top = candidates[0]
+    average = sum(c["score"] for c in candidates) / len(candidates)
+    grid([
+        stat_card("👥 Candidates screened", len(candidates), "#4f46e5"),
+        stat_card("🏆 Top ranked", top["name"], "#d97706"),
+        stat_card("🎯 Highest similarity", f"{top['score']:.1f}%", "#db2777"),
+        stat_card("📈 Average similarity", f"{average:.1f}%", "#0891b2"),
+    ])
+
+    overview, details, report = st.tabs(["🍩 Match overview", "🔍 Candidate details", "📑 Report"])
+
+    with overview:
+        st.subheader("Text similarity to the job description")
+        grid([
+            ring_card(c["score"], RING_COLORS[i % len(RING_COLORS)], c["name"], f"Rank #{i + 1}")
+            for i, c in enumerate(candidates)
+        ])
+        if jd_skills:
+            st.subheader("Job skills found in each resume")
+            cards = []
+            for i, c in enumerate(candidates):
+                found = len(set(c["skills"]) & set(jd_skills))
+                cards.append(ring_card(
+                    100 * found / len(jd_skills), "#059669", c["name"],
+                    f"{found} of {len(jd_skills)} skills",
+                ))
+            grid(cards)
+            st.caption("Keyword check against the app's skill list. It does not affect the ranking.")
+
+    with details:
+        index = st.selectbox(
+            "Choose a candidate",
+            range(len(candidates)),
+            format_func=lambda i: f"#{i + 1} · {candidates[i]['name']} ({candidates[i]['filename']})",
+        )
+        c = candidates[index]
+        found = set(c["skills"])
+        show_html(
+            '<div class="card">'
+            f"<p><b>✅ Matching skills</b><br>{chips([s for s in jd_skills if s in found], 'match')}</p>"
+            f"<p><b>❌ Job skills not found</b><br>{chips([s for s in jd_skills if s not in found], 'missing')}</p>"
+            f"<p><b>➕ Other skills</b><br>{chips([s for s in c['skills'] if s not in jd_skills], 'extra')}</p>"
+            "</div>"
+        )
+        left, right = st.columns(2)
+        left.markdown("**🎓 Education**")
+        left.write(", ".join(c["education"]))
+        right.markdown("**💼 Experience stated in resume**")
+        right.write(", ".join(c["experience"]))
+        with st.expander("Preview extracted resume text"):
+            st.text(c["text"][:5000])
+
+    with report:
+        table = pd.DataFrame([
+            {
+                "Rank": rank,
+                "Candidate Name": c["name"],
+                "File Name": c["filename"],
+                "Text Similarity (%)": c["score"],
+                "Extracted Skills": ", ".join(c["skills"]),
+                "Education": ", ".join(c["education"]),
+                "Experience": ", ".join(c["experience"]),
+            }
+            for rank, c in enumerate(candidates, start=1)
+        ])
+        st.dataframe(table, use_container_width=True, hide_index=True)
+        st.download_button(
+            "⬇️ Download ranking report (CSV)",
+            data=table.to_csv(index=False).encode("utf-8"),
+            file_name="candidate_ranking_report.csv",
+            mime="text/csv",
+        )
+
+
+show_html(STYLE)
+show_html(
+    '<div class="hero"><h1>📄 AI Resume Screening</h1>'
+    "<p>Rank resumes by text similarity to a job description, using Sentence-BERT.</p></div>"
+)
 
 with st.sidebar:
-    st.header("✨ How it works")
-    st.markdown(
-        "1. Extract text from PDF/TXT resumes\n"
-        "2. Identify listed skills, education, and stated experience\n"
-        "3. Encode the job description and resumes with Sentence-BERT\n"
-        "4. Rank by cosine similarity\n"
-        "5. Download a CSV report"
-    )
-    st.caption("Uploaded resume text is processed in memory by this app and is not intentionally saved to a file.")
-
-col_jd, col_upload = st.columns([1, 1])
-with col_jd:
-    st.subheader("📝 1. Job description")
-    job_description = st.text_area(
-        "Paste the target job description",
-        value=DEFAULT_JD,
-        height=300,
-    )
-with col_upload:
-    st.subheader("📂 2. Upload candidate resumes")
-    uploaded_files = st.file_uploader(
-        "Choose PDF or TXT files",
+    st.header("📤 Upload files")
+    jd_file = st.file_uploader("📝 Job description (PDF or TXT)", type=["pdf", "txt"])
+    jd_typed = st.text_area("Or paste the job description", height=150, disabled=jd_file is not None)
+    resume_files = st.file_uploader(
+        "👤 Candidate resumes (PDF or TXT)",
         type=["pdf", "txt"],
         accept_multiple_files=True,
-        help="For best results, use text-based PDFs. Scanned image-only PDFs may need OCR.",
+        help="Scanned image-only PDFs need OCR, which this app does not do.",
     )
-    if uploaded_files:
-        st.success(f"{len(uploaded_files)} file(s) selected.")
+    run = st.button("🚀 Screen candidates", type="primary", use_container_width=True)
+    st.caption("Files are processed in memory and are not intentionally saved.")
 
-if st.button("🚀 Screen and rank candidates", type="primary", use_container_width=True):
-    if not job_description.strip():
-        st.error("Please enter a job description.")
-    elif not uploaded_files:
-        st.warning("Please upload at least one resume.")
+# Results are kept across reruns, and cleared when any input changes
+signature = hashlib.sha256()
+for upload in ([jd_file] if jd_file else []) + list(resume_files or []):
+    signature.update(upload.name.encode() + b"\0" + hashlib.sha256(upload.getvalue()).digest())
+if not jd_file:
+    signature.update(jd_typed.encode())
+signature = signature.hexdigest()
+if st.session_state.get("signature") != signature:
+    st.session_state.pop("results", None)
+
+if run:
+    st.session_state.pop("results", None)
+    job_description = read_upload(jd_file) if jd_file else jd_typed.strip()
+    if not job_description:
+        st.error("Upload or paste a readable job description in the sidebar.")
+    elif not resume_files:
+        st.warning("Upload at least one resume in the sidebar.")
     else:
-        parsed_candidates = []
-        for file in uploaded_files:
-            text = extract_text(file)
-            if text.startswith("ERROR:"):
-                st.error(text)
-                continue
-            if not text:
-                st.warning(f"No readable text was extracted from {file.name}. It may be scanned or empty.")
-                continue
-            parsed_candidates.append({
-                "name": Path(file.name).stem.replace("_", " ").replace("-", " ").title(),
-                "filename": file.name,
-                "text": text,
-                "skills": extract_skills(text),
-                "education": extract_education(text),
-                "experience": extract_experience(text),
-            })
-
-        if not parsed_candidates:
+        candidates = []
+        for file in resume_files:
+            text = read_upload(file)
+            if text:
+                candidates.append({
+                    "name": Path(file.name).stem.replace("_", " ").replace("-", " ").title(),
+                    "filename": file.name,
+                    "text": text,
+                    "skills": extract_skills(text),
+                    "education": extract_education(text),
+                    "experience": extract_experience(text),
+                })
+        if not candidates:
             st.error("No readable resumes were found. Try text-based PDF or TXT files.")
         else:
             try:
-                model = get_embedder()
                 with st.spinner("Comparing job description and resumes..."):
-                    texts = [job_description] + [candidate["text"] for candidate in parsed_candidates]
-                    embeddings = model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
-                    jd_embedding = embeddings[0]
-                    for idx, candidate in enumerate(parsed_candidates, start=1):
-                        similarity = float(np.dot(jd_embedding, embeddings[idx]))
-                        candidate["score"] = round(float(np.clip(similarity, 0.0, 1.0)) * 100, 2)
-
-                parsed_candidates.sort(key=lambda item: item["score"], reverse=True)
-                report_rows = []
-                jd_skills = extract_skills(job_description)
-                top = parsed_candidates[0]
-                average = sum(c["score"] for c in parsed_candidates) / len(parsed_candidates)
-
-                k1, k2, k3, k4 = st.columns(4)
-                stat_card(k1, "👥 Candidates screened", len(parsed_candidates), "#4f46e5,#6366f1")
-                stat_card(k2, "🏆 Top ranked", top["name"], "#7e22ce,#a855f7")
-                stat_card(k3, "🎯 Highest similarity", f"{top['score']:.1f}%", "#be185d,#ec4899")
-                stat_card(k4, "📈 Average similarity", f"{average:.1f}%", "#0f766e,#0d9488")
-
-                st.subheader("📊 Candidate match graph")
-                st.altair_chart(match_chart(parsed_candidates), use_container_width=True)
-
-                if jd_skills:
-                    st.subheader("🧩 Skill coverage")
-                    st.altair_chart(skill_chart(parsed_candidates, jd_skills), use_container_width=True)
-                    st.caption(
-                        "Keyword check against the app's skill list. It does not affect the ranking."
-                    )
-
-                st.subheader("🏅 Candidate ranking")
-                for rank, candidate in enumerate(parsed_candidates, start=1):
-                    with st.expander(
-                        f"{({1: '🥇', 2: '🥈', 3: '🥉'}).get(rank, '🔹')} #{rank} — {candidate['name']} · {candidate['score']:.2f}% text similarity",
-                        expanded=(rank == 1),
-                    ):
-                        st.progress(candidate["score"] / 100.0)
-                        c1, c2, c3 = st.columns(3)
-                        found = set(candidate["skills"])
-                        c1.markdown("**✅ Skills matching the job**")
-                        c1.markdown(skill_chips(sorted(found & set(jd_skills)), "match"), unsafe_allow_html=True)
-                        c1.markdown("**❌ Job skills not found**")
-                        c1.markdown(skill_chips(sorted(set(jd_skills) - found), "missing"), unsafe_allow_html=True)
-                        c1.markdown("**➕ Other skills**")
-                        c1.markdown(skill_chips(sorted(found - set(jd_skills)), "extra"), unsafe_allow_html=True)
-                        c2.markdown("**Education**")
-                        c2.write(", ".join(candidate["education"]))
-                        c3.markdown("**Experience stated in resume**")
-                        c3.write(", ".join(candidate["experience"]))
-                        with st.expander("Preview extracted resume text"):
-                            st.text(candidate["text"][:5000])
-
-                    report_rows.append({
-                        "Rank": rank,
-                        "Candidate Name": candidate["name"],
-                        "File Name": candidate["filename"],
-                        "Text Similarity (%)": candidate["score"],
-                        "Extracted Skills": ", ".join(candidate["skills"]),
-                        "Education": ", ".join(candidate["education"]),
-                        "Experience": ", ".join(candidate["experience"]),
-                    })
-
-                report_df = pd.DataFrame(report_rows)
-                st.subheader("📑 Downloadable report")
-                st.dataframe(report_df, use_container_width=True, hide_index=True)
-                st.download_button(
-                    "⬇️ Download candidate ranking report (CSV)",
-                    data=report_df.to_csv(index=False).encode("utf-8"),
-                    file_name="candidate_ranking_report.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                )
-                st.caption(
-                    "Scores reflect semantic text similarity only. They can be affected by resume wording, "
-                    "formatting, and the selected job description; they should not be used as the sole hiring criterion."
-                )
+                    ranked = rank_candidates(job_description, candidates)
+                st.session_state["results"] = (ranked, extract_skills(job_description))
+                st.session_state["signature"] = signature
             except Exception as exc:
                 st.error(f"Could not complete resume screening: {exc}")
-                st.info("If this is the first launch, wait for the model to finish downloading and try again.")
+
+if "results" in st.session_state:
+    show_results(*st.session_state["results"])
+elif not run:
+    st.info("👈 Add a job description and resumes in the sidebar, then select **Screen candidates**.")
+
+st.caption(
+    "Scores are approximate text-similarity signals, not probabilities of job performance. "
+    "Review each resume yourself and do not use scores as the sole hiring criterion."
+)
