@@ -59,35 +59,36 @@ EXPERIENCE_PATTERNS = [
 
 STYLE = """
 <style>
-.hero { background: linear-gradient(120deg, #0f172a, #3730a3 55%, #0e7490);
+.hero { background: linear-gradient(120deg, #e9d5ff, #fbcfe8);
         border-radius: 20px; padding: 30px 34px; margin-bottom: 20px; }
-.hero h1 { color: #fff; margin: 0; padding: 0; font-size: 2rem; }
-.hero p { color: #cbd5e1; margin: 8px 0 0; }
+.hero h1 { color: #3b0764; margin: 0; padding: 0; font-size: 2rem; }
+.hero p { color: #581c87; margin: 8px 0 0; }
 .grid { display: grid; gap: 14px; margin-bottom: 18px;
         grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
-.card { background: #fff; color: #0f172a; border-radius: 16px; padding: 18px;
-        border: 1px solid #e2e8f0; box-shadow: 0 6px 18px rgba(15,23,42,.08); }
+.card { background: #fff; color: #3b0764; border-radius: 16px; padding: 18px;
+        border: 1px solid #ede9fe; box-shadow: 0 6px 18px rgba(15,23,42,.08); }
 .stat { border-top: 5px solid var(--c); }
-.stat small { color: #64748b; display: block; }
+.stat small { color: #6b5b8a; display: block; }
 .stat b { font-size: 1.5rem; overflow-wrap: anywhere; }
 .person { text-align: center; }
 .ring { width: 140px; height: 140px; border-radius: 50%; margin: 6px auto 12px;
         display: grid; place-items: center;
-        background: conic-gradient(var(--c) calc(var(--p) * 1%), #e2e8f0 0); }
+        background: conic-gradient(var(--c) calc(var(--p) * 1%), #ede9fe 0); }
 .ring span { width: 108px; height: 108px; border-radius: 50%; background: #fff;
              display: grid; place-items: center; font-size: 1.45rem; font-weight: 700; }
 .person b { display: block; overflow-wrap: anywhere; }
-.person small { color: #64748b; }
+.person small { color: #6b5b8a; }
 .chip { display: inline-block; padding: 4px 12px; margin: 3px; border-radius: 999px;
         font-size: .85rem; font-weight: 600; }
 .match { background: #d1fae5; color: #065f46; }
 .missing { background: #ffe4e6; color: #9f1239; }
-.extra { background: #e0e7ff; color: #3730a3; }
-section[data-testid="stSidebar"] { border-right: 4px solid #4f46e5; }
+.extra { background: #ede9fe; color: #5b21b6; }
+section[data-testid="stSidebar"] { border-right: 4px solid #c4b5fd; }
+button[data-testid="stBaseButton-primary"] { background: #c4b5fd; border-color: #a78bfa; color: #3b0764; }
 </style>
 """
 
-RING_COLORS = ["#4f46e5", "#0891b2", "#db2777", "#d97706", "#059669", "#7c3aed"]
+RING_COLORS = ["#a78bfa", "#f0abfc", "#f9a8d4", "#a5b4fc", "#c4b5fd", "#d8b4fe"]
 
 
 @st.cache_resource(show_spinner="Loading Sentence-BERT model (first load may take a few minutes)...")
@@ -182,10 +183,10 @@ def show_results(candidates, jd_skills):
     top = candidates[0]
     average = sum(c["score"] for c in candidates) / len(candidates)
     grid([
-        stat_card("👥 Candidates screened", len(candidates), "#4f46e5"),
-        stat_card("🏆 Top ranked", top["name"], "#d97706"),
-        stat_card("🎯 Highest similarity", f"{top['score']:.1f}%", "#db2777"),
-        stat_card("📈 Average similarity", f"{average:.1f}%", "#0891b2"),
+        stat_card("👥 Candidates screened", len(candidates), "#a78bfa"),
+        stat_card("🏆 Top ranked", top["name"], "#f0abfc"),
+        stat_card("🎯 Highest similarity", f"{top['score']:.1f}%", "#f9a8d4"),
+        stat_card("📈 Average similarity", f"{average:.1f}%", "#a5b4fc"),
     ])
 
     overview, details, report = st.tabs(["🍩 Match overview", "🔍 Candidate details", "📑 Report"])
@@ -202,7 +203,7 @@ def show_results(candidates, jd_skills):
             for i, c in enumerate(candidates):
                 found = len(set(c["skills"]) & set(jd_skills))
                 cards.append(ring_card(
-                    100 * found / len(jd_skills), "#059669", c["name"],
+                    100 * found / len(jd_skills), "#86efac", c["name"],
                     f"{found} of {len(jd_skills)} skills",
                 ))
             grid(cards)
